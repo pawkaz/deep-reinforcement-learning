@@ -15,10 +15,8 @@ matplotlib.use('Agg')
 
 def main(args):
     print(args)
-    if args.headless:
-        env = UnityEnvironment(file_name="Banana_Linux_NoVis/Banana.x86_64")
-    else:
-        env = UnityEnvironment(file_name="Banana_Linux/Banana.x86_64")
+    
+    env = UnityEnvironment(file_name=args.path)
 
     env_wr = EnvWrapper(env)
 
@@ -33,12 +31,14 @@ def main(args):
 
     fig, ax = plt.subplots(1, 1, figsize=(8, 8))
     ax.plot(scores)
+    ax.set_xlabel("Episodes")
+    ax.set_ylabel("Mean Score")
     fig.savefig("scores.png")
     env_wr.close()
 
 
-def train(env, agent, n_episodes=1000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.995, score_threshold=13.0):
-    """Deep Q-Learning.
+def train(env, agent, n_episodes:int=1000, max_t:int=1000, eps_start:float=1.0, eps_end:float=0.01, eps_decay:float=0.995, score_threshold:float=13):
+2    """Deep Q-Learning.
 
     Params
     ======
@@ -104,21 +104,14 @@ class EnvWrapper():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train DQN Network')
-    parser.add_argument('--episodes', dest='episodes',
-                        help='sum the integers (default: find the max)', default=2000, type=int)
-    parser.add_argument('--headless', dest='headless',
-                        action="store_true", help='Use headless build', default=False)
-    parser.add_argument('--epsilon', dest='eps_start',
-                        help='Epsilon greedy policy', default=1.0, type=float)
-    parser.add_argument('--epsilon_decay', dest='eps_decay',
-                        help='Epsilon decay rate for every episode', default=0.995, type=float)
-    parser.add_argument('--epsilon_min', dest='eps_min',
-                        help='Min epsilon value', default=0.01, type=float)
-    parser.add_argument('--batch_size', "-bs", dest='batch_size',
-                        help='Batch size for the learn step', default=64, type=int)
-    parser.add_argument('--learning_rate', "-lr", dest='lr',
-                        help='Learning rate', default=5e-4, type=float)
-    parser.add_argument('--update_every', dest='update_target',
-                        help='Update target qnetwork every', default=4, type=int)
+    parser.add_argument('--path', dest='path', help='path to environment', default="Banana_Linux/Banana.x86_64", type=str)
+    parser.add_argument('--episodes', dest='episodes', help='number of episodes', default=2000, type=int)
+    parser.add_argument('--headless', dest='headless', action="store_true", help='Use headless build', default=False)
+    parser.add_argument('--epsilon', dest='eps_start', help='Epsilon greedy policy', default=1.0, type=float)
+    parser.add_argument('--epsilon_decay', dest='eps_decay', help='Epsilon decay rate for every episode', default=0.995, type=float)
+    parser.add_argument('--epsilon_min', dest='eps_min', help='Min epsilon value', default=0.01, type=float)
+    parser.add_argument('--batch_size', "-bs", dest='batch_size', help='Batch size for the learn step', default=64, type=int)
+    parser.add_argument('--learning_rate', "-lr", dest='lr', help='Learning rate', default=5e-4, type=float)
+    parser.add_argument('--update_every', dest='update_target', help='Update target qnetwork every', default=4, type=int)
     args = parser.parse_args()
     main(args)

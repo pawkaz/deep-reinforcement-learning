@@ -61,14 +61,12 @@ class Agent():
         # self.seed = random.seed(seed)
 
         # Q-Network
-        self.qnetwork_local = QNetwork(
-            state_size, action_size).to(device)
-        self.qnetwork_target = QNetwork(
-            state_size, action_size).to(device)
+        self.qnetwork_local = QNetwork(state_size, action_size).to(device)
+        self.qnetwork_target = QNetwork(state_size, action_size).to(device)
         self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=lr)
 
         # Replay memory
-        self.memory = ReplayBuffer(action_size, BUFFER_SIZE, batch_size, seed)
+        self.memory = ReplayBuffer(action_size, BUFFER_SIZE, batch_size)
         self.update_every = update_every
         # Initialize time step (for updating every UPDATE_EVERY steps)
         self.t_step = 0
@@ -115,8 +113,6 @@ class Agent():
         """
         states, actions, rewards, next_states, dones = experiences
 
-        # TODO: compute and minimize the loss
-        "*** YOUR CODE HERE ***"
         self.qnetwork_target.eval()
         with torch.no_grad():
             q_targets = self.qnetwork_target(next_states).max(1)[0].view(-1, 1)
@@ -151,7 +147,7 @@ class Agent():
 class ReplayBuffer:
     """Fixed-size buffer to store experience tuples."""
 
-    def __init__(self, action_size, buffer_size, batch_size, seed):
+    def __init__(self, action_size, buffer_size, batch_size):
         """Initialize a ReplayBuffer object.
 
         Params
@@ -166,7 +162,6 @@ class ReplayBuffer:
         self.batch_size = batch_size
         self.experience = namedtuple("Experience", field_names=[
                                      "state", "action", "reward", "next_state", "done"])
-        self.seed = random.seed(seed)
 
     def add(self, state, action, reward, next_state, done):
         """Add a new experience to memory."""

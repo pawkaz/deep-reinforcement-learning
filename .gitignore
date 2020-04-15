@@ -102,3 +102,6 @@ ENV/
 
 # mypy
 .mypy_cache/
+p1_navigation/Banana_Linux*
+*.mp4
+discretization/videos/*
