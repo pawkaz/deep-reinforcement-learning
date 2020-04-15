@@ -37,4 +37,4 @@ class Agent:
         - next_state: the current state of the environment
         - done: whether the episode is complete (True or False)
         """
-        self.Q[state][action] += 1
+        self.Q[state][action] += 1§`
