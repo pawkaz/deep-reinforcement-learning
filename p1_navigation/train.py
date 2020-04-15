@@ -38,7 +38,7 @@ def main(args):
 
 
 def train(env, agent, n_episodes:int=1000, max_t:int=1000, eps_start:float=1.0, eps_end:float=0.01, eps_decay:float=0.995, score_threshold:float=13):
-2    """Deep Q-Learning.
+    """Deep Q-Learning.
 
     Params
     ======
