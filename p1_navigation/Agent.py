@@ -7,12 +7,12 @@ import torch.optim as optim
 from collections import namedtuple, deque
 
 
-BUFFER_SIZE = int(1e5)  # replay buffer size
-BATCH_SIZE = 64         # minibatch size
-GAMMA = 0.99            # discount factor
-TAU = 1e-3              # for soft update of target parameters
-LR = 5e-4               # learning rate
-UPDATE_EVERY = 4        # how often to update the network
+# BUFFER_SIZE = int(1e5)  # replay buffer size
+# BATCH_SIZE = 64         # minibatch size
+# GAMMA = 0.99            # discount factor
+# TAU = 1e-3              # for soft update of target parameters
+# LR = 5e-4               # learning rate
+# UPDATE_EVERY = 4        # how often to update the network
 
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -47,7 +47,7 @@ class QNetwork(nn.Module):
 class Agent():
     """Interacts with and learns from the environment."""
 
-    def __init__(self, state_size, action_size, lr, batch_size, update_every):
+    def __init__(self, state_size, action_size, lr, batch_size, update_every, gamma, tau, buffer_size):
         """Initialize an Agent object.
 
         Params
@@ -59,6 +59,9 @@ class Agent():
         self.state_size = state_size
         self.action_size = action_size
         self.batch_size = batch_size
+        self.gamma = gamma
+        self.tau = tau
+        self.buffer_size = buffer_size
         # self.seed = random.seed(seed)
 
         # Q-Network
@@ -67,7 +70,7 @@ class Agent():
         self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=lr)
 
         # Replay memory
-        self.memory = ReplayBuffer(action_size, BUFFER_SIZE, batch_size)
+        self.memory = ReplayBuffer(action_size, self.buffer_size, batch_size)
         self.update_every = update_every
         # Initialize time step (for updating every UPDATE_EVERY steps)
         self.t_step = 0
@@ -82,7 +85,7 @@ class Agent():
             # If enough samples are available in memory, get random subset and learn
             if len(self.memory) > self.batch_size:
                 experiences = self.memory.sample()
-                self.learn(experiences, GAMMA)
+                self.learn(experiences, self.gamma)
 
     def act(self, state, eps=0.):
         """Returns actions for given state as per current policy.
@@ -100,9 +103,9 @@ class Agent():
 
         # Epsilon-greedy action selection
         if random.random() > eps:
-            return np.argmax(action_values.cpu().data.numpy())
+            return action_values.argmax(-1).item()
         else:
-            return random.choice(np.arange(self.action_size))
+            return random.randint(0, self.action_size - 1)
 
     def learn(self, experiences, gamma):
         """Update value parameters using given batch of experience tuples.
@@ -129,7 +132,7 @@ class Agent():
         self.optimizer.zero_grad()
 
         # ------------------- update target network ------------------- #
-        self.soft_update(self.qnetwork_local, self.qnetwork_target, TAU)
+        self.soft_update(self.qnetwork_local, self.qnetwork_target, self.tau)
 
     def soft_update(self, local_model, target_model, tau):
         """Soft update model parameters.

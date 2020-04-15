@@ -21,7 +21,11 @@ def main(args):
     env_wr = EnvWrapper(env)
 
     agent = Agent(state_size=37, action_size=4, lr=args.lr,
-                  batch_size=args.batch_size, update_every=args.update_target)
+                  batch_size=args.batch_size,
+                  update_every=args.update_target,
+                  gamma=args.gamma,
+                  tau=args.tau,
+                  buffer_size=args.buffer_size)
 
     scores = train(env_wr, agent,
                    n_episodes=args.episodes,
@@ -108,10 +112,13 @@ if __name__ == "__main__":
     parser.add_argument('--episodes', dest='episodes', help='number of episodes', default=2000, type=int)
     parser.add_argument('--headless', dest='headless', action="store_true", help='Use headless build', default=False)
     parser.add_argument('--epsilon', dest='eps_start', help='Epsilon greedy policy', default=1.0, type=float)
+    parser.add_argument('--gamma', dest='gamma', help='Discount factor', default=0.99, type=float)
+    parser.add_argument('--tau', dest='tau', help='For soft update of target parameters', default=1e-3, type=float)
     parser.add_argument('--epsilon_decay', dest='eps_decay', help='Epsilon decay rate for every episode', default=0.995, type=float)
     parser.add_argument('--epsilon_min', dest='eps_min', help='Min epsilon value', default=0.01, type=float)
     parser.add_argument('--batch_size', "-bs", dest='batch_size', help='Batch size for the learn step', default=64, type=int)
+    parser.add_argument('--buffer_size', dest='buffer_size', help='Replay buffer size', default=int(1e5), type=int)
     parser.add_argument('--learning_rate', "-lr", dest='lr', help='Learning rate', default=5e-4, type=float)
-    parser.add_argument('--update_every', dest='update_target', help='Update target qnetwork every', default=4, type=int)
+    parser.add_argument('--update_every', dest='update_target', help='How often update target qnetwork', default=4, type=int)
     args = parser.parse_args()
     main(args)
