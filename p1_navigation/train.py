@@ -1,6 +1,7 @@
 import argparse
 import random
 from collections import deque, namedtuple
+from typing import Deque, Tuple
 
 import matplotlib
 import numpy as np
@@ -41,7 +42,7 @@ def main(args):
     env_wr.close()
 
 
-def train(env, agent, n_episodes:int=1000, max_t:int=1000, eps_start:float=1.0, eps_end:float=0.01, eps_decay:float=0.995, score_threshold:float=13):
+def train(env, agent, n_episodes:int=1000, max_t:int=1000, eps_start:float=1.0, eps_end:float=0.01, eps_decay:float=0.995, score_threshold:float=13)->list:
     """Deep Q-Learning.
 
     Params
@@ -53,7 +54,7 @@ def train(env, agent, n_episodes:int=1000, max_t:int=1000, eps_start:float=1.0, 
         eps_decay (float): multiplicative factor (per episode) for decreasing epsilon
     """
     scores = []
-    scores_window = deque(maxlen=100)
+    scores_window:Deque[float] = deque(maxlen=100)
     eps = eps_start
     best_score = float("-inf")
     for i_episode in range(1, n_episodes+1):
@@ -75,8 +76,10 @@ def train(env, agent, n_episodes:int=1000, max_t:int=1000, eps_start:float=1.0, 
 
         if i_episode % 100 == 0:
             print(f'\rEpisode {i_episode}\tAverage Score: {window_score:.2f}')
+
         if window_score >= score_threshold and best_score < score_threshold:
             print(f'\nEnvironment solved in {i_episode:d} episodes!\tAverage Score: {window_score:.2f}')
+
         if window_score > best_score and window_score >= score_threshold:
             best_score = window_score
             torch.save(agent.qnetwork_local.state_dict(), 'checkpoint.pt')
@@ -86,18 +89,18 @@ def train(env, agent, n_episodes:int=1000, max_t:int=1000, eps_start:float=1.0, 
 
 
 class EnvWrapper():
-    def __init__(self, env):
+    def __init__(self, env:UnityEnvironment):
         self.env = env
         self.brain_name = env.brain_names[0]
 
-    def step(self, action):
+    def step(self, action:int)->Tuple[np.ndarray, float, float, None]:
         env_info = self.env.step(action)[self.brain_name]
         next_state = env_info.vector_observations[0]
         reward = env_info.rewards[0]
         done = env_info.local_done[0]
         return next_state, reward, done, None
 
-    def reset(self, train_mode=True):
+    def reset(self, train_mode:bool=True)->np.ndarray:
         env_info = self.env.reset(train_mode=train_mode)[self.brain_name]
         state = env_info.vector_observations[0]
         return state
