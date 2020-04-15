@@ -104,7 +104,7 @@ class Agent():
         else:
             return random.randint(0, self.action_size - 1)
 
-    def learn(self, experiences:Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], gamma:float):
+    def learn(self, experiences:Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], gamma:float, decoupled:bool=True):
         """Update value parameters using given batch of experience tuples.
 
         Params
@@ -115,8 +115,13 @@ class Agent():
         states, actions, rewards, next_states, dones = experiences
 
         self.qnetwork_target.eval()
+
         with torch.no_grad():
-            q_targets = self.qnetwork_target(next_states).max(1)[0].view(-1, 1)
+            if decoupled:
+                q_actions = self.qnetwork_local(next_states).argmax(1).view(-1, 1)
+                q_targets = self.qnetwork_target(next_states).gather(1, q_actions)
+            else:
+                q_targets = self.qnetwork_target(next_states).max(1)[0].view(-1, 1)
             q_targets *= gamma * (1.0 - dones)
             q_targets += rewards
 
