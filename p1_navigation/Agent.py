@@ -58,6 +58,7 @@ class Agent():
         """
         self.state_size = state_size
         self.action_size = action_size
+        self.batch_size = batch_size
         # self.seed = random.seed(seed)
 
         # Q-Network
@@ -79,7 +80,7 @@ class Agent():
         self.t_step = (self.t_step + 1) % self.update_every
         if self.t_step == 0:
             # If enough samples are available in memory, get random subset and learn
-            if len(self.memory) > BATCH_SIZE:
+            if len(self.memory) > self.batch_size:
                 experiences = self.memory.sample()
                 self.learn(experiences, GAMMA)
 
