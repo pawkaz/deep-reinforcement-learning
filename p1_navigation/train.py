@@ -26,7 +26,9 @@ def main(args):
                   update_every=args.update_target,
                   gamma=args.gamma,
                   tau=args.tau,
-                  buffer_size=args.buffer_size)
+                  buffer_size=args.buffer_size,
+                  dueling=args.dueling,
+                  decoupled=args.decoupled)
 
     scores = train(env_wr, agent,
                    n_episodes=args.episodes,
@@ -112,8 +114,9 @@ class EnvWrapper():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train DQN Network')
     parser.add_argument('--path', dest='path', help='path to environment', default="Banana_Linux/Banana.x86_64", type=str)
-    parser.add_argument('--episodes', dest='episodes', help='number of episodes', default=2000, type=int)
-    parser.add_argument('--headless', dest='headless', action="store_true", help='Use headless build', default=False)
+    parser.add_argument('--episodes', dest='episodes', help='number of episodes', default=1000, type=int)
+    parser.add_argument('--no_deuling', dest='dueling', action="store_false", help='Use dueling network', default=True)
+    parser.add_argument('--no_decoupled', dest='decoupled', action="store_false", help='Do not use decoupled target', default=True)
     parser.add_argument('--epsilon', dest='eps_start', help='Epsilon greedy policy', default=1.0, type=float)
     parser.add_argument('--gamma', dest='gamma', help='Discount factor', default=0.99, type=float)
     parser.add_argument('--tau', dest='tau', help='For soft update of target parameters', default=1e-3, type=float)

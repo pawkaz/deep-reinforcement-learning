@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from typing import Tuple, Deque
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
@@ -35,11 +36,43 @@ class QNetwork(nn.Module):
         """Build a network that maps state -> action values."""
         return self.l(state)
 
+class QNetworkD(nn.Module):
+    """Dueling version of QNetwork"""
+
+    def __init__(self, state_size:int, action_size:int):
+        """Initialize parameters and build model.
+        Params
+        ======
+            state_size (int): Dimension of each state
+            action_size (int): Dimension of each action
+        """
+        super(QNetworkD, self).__init__()
+        self.l = nn.Sequential(
+            nn.Linear(state_size, 64),
+            nn.ReLU(True),
+            nn.Linear(64, 64),
+            nn.ReLU(True)
+        )
+        self.stream_state = nn.Linear(32, 1)
+        self.stream_advantage = nn.Linear(32, action_size)
+
+    def forward(self, state:torch.Tensor)->torch.Tensor:
+        """Build a network that maps state -> action values."""
+        features = self.l(state)
+        features_state, features_advantage = torch.split(features, 32, 1)
+        state_value = self.stream_state(features_state)
+        advantage_value = self.stream_advantage(features_advantage)
+        advantage_value = advantage_value - advantage_value.mean(1, keepdim=True)
+        q_value = advantage_value + state_value
+        return q_value
+
 
 class Agent():
     """Interacts with and learns from the environment."""
 
-    def __init__(self, state_size:int, action_size:int, lr:float, batch_size:int, update_every:int, gamma:float, tau:float, buffer_size:int):
+    def __init__(self, state_size: int, action_size: int, lr: float, batch_size: int,
+                 update_every: int, gamma: float, tau: float, buffer_size: int,
+                 dueling: bool = True, decoupled: bool = True):
         """Initialize an Agent object.
 
         Params
@@ -59,11 +92,17 @@ class Agent():
         self.gamma = gamma
         self.tau = tau
         self.buffer_size = buffer_size
+        self.decoupled = decoupled
         # self.seed = random.seed(seed)
 
         # Q-Network
-        self.qnetwork_local = QNetwork(state_size, action_size).to(device)
-        self.qnetwork_target = QNetwork(state_size, action_size).to(device)
+        if dueling:
+            self.qnetwork_local = QNetworkD(state_size, action_size).to(device)
+            self.qnetwork_target = QNetworkD(state_size, action_size).to(device)
+        else:
+            self.qnetwork_local = QNetwork(state_size, action_size).to(device)
+            self.qnetwork_target = QNetwork(state_size, action_size).to(device)
+
         self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=lr)
 
         # Replay memory
@@ -82,7 +121,7 @@ class Agent():
             # If enough samples are available in memory, get random subset and learn
             if len(self.memory) > self.batch_size:
                 experiences = self.memory.sample()
-                self.learn(experiences, self.gamma)
+                self.learn(experiences, self.gamma, self.decoupled)
 
     def act(self, state:np.ndarray, eps=0.)->int:
         """Returns actions for given state as per current policy.
@@ -104,7 +143,7 @@ class Agent():
         else:
             return random.randint(0, self.action_size - 1)
 
-    def learn(self, experiences:Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], gamma:float, decoupled:bool=True):
+    def learn(self, experiences:Tuple, gamma:float, decoupled:bool=True):
         """Update value parameters using given batch of experience tuples.
 
         Params

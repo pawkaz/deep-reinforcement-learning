@@ -1,7 +1,7 @@
 from unityagents import UnityEnvironment
 import numpy as np
 import torch
-from Agent import QNetwork
+from Agent import QNetwork, QNetworkD
 import argparse
 
 def main(args):
@@ -10,7 +10,11 @@ def main(args):
 
     brain_name = env.brain_names[0]
 
-    network = QNetwork(37, 4).to(device).eval()
+    if args.dueling:
+        network = QNetworkD(37, 4).to(device).eval()
+    else:
+        network = QNetwork(37, 4).to(device).eval()
+
     network.load_state_dict(torch.load(args.model_path, map_location=str(device)))
 
     env_info = env.reset(train_mode=False)[brain_name] 
@@ -41,5 +45,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Inference DQN Network')
     parser.add_argument('--env_path', "-e", dest='env_path', help='path to environment', default="Banana_Linux/Banana.x86_64", type=str)
     parser.add_argument('--path_weights', "-m", dest='model_path', help='path to model weights', default="checkpoint.pt", type=str)
+    parser.add_argument('--no_deuling', dest='dueling', action="store_false", help='Use dueling network', default=True)
     args = parser.parse_args()
     main(args)
