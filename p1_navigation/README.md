@@ -6,11 +6,13 @@
 
 ### Introduction
 
-For this project, you will train an agent to navigate (and collect bananas!) in a large, square world.  
+This repository contains a solution for the first project from the Udacity Deep Reinforcement Learning Program. Inference score is equal to ```14```, best achievied mean score over 100 consecutive episodes during training is equal to ```16.73```. The agent has solved the task in ```461 episodes```.
+
+### Environment
 
 ![Trained Agent][image1]
 
-A reward of +1 is provided for collecting a yellow banana, and a reward of -1 is provided for collecting a blue banana.  Thus, the goal of your agent is to collect as many yellow bananas as possible while avoiding blue bananas.  
+The environment is based on the unity ml-agents library.  A reward of +1 is provided for collecting a yellow banana, and a reward of -1 is provided for collecting a blue banana.  Thus, the goal of agent is to collect as many yellow bananas as possible while avoiding blue bananas.  
 
 The state space has 37 dimensions and contains the agent's velocity, along with ray-based perception of objects around agent's forward direction.  Given this information, the agent has to learn how to best select actions.  Four discrete actions are available, corresponding to:
 - **`0`** - move forward.
@@ -18,9 +20,9 @@ The state space has 37 dimensions and contains the agent's velocity, along with 
 - **`2`** - turn left.
 - **`3`** - turn right.
 
-The task is episodic, and in order to solve the environment, your agent must get an average score of +13 over 100 consecutive episodes.
+The task is episodic, and in order to solve the environment, the agent must get an average score of +13 over 100 consecutive episodes.
 
-### Getting Started
+### Setting up the environment
 
 1. Download the environment from one of the links below.  You need only select the environment that matches your operating system:
     - Linux: [click here](https://s3-us-west-1.amazonaws.com/udacity-drlnd/P1/Banana/Banana_Linux.zip)
@@ -32,24 +34,55 @@ The task is episodic, and in order to solve the environment, your agent must get
 
     (_For AWS_) If you'd like to train the agent on AWS (and have not [enabled a virtual screen](https://github.com/Unity-Technologies/ml-agents/blob/master/docs/Training-on-Amazon-Web-Service.md)), then please use [this link](https://s3-us-west-1.amazonaws.com/udacity-drlnd/P1/Banana/Banana_Linux_NoVis.zip) to obtain the environment.
 
-2. Place the file in the DRLND GitHub repository, in the `p1_navigation/` folder, and unzip (or decompress) the file. 
+2. Follow instructions from the [DRLND GitHub repository](https://github.com/udacity/deep-reinforcement-learning#dependencies) to install required python dependencies.
 
-### Instructions
+### Train model
+To train the agent, run in the terminal:
 
-Follow the instructions in `Navigation.ipynb` to get started with training your own agent!  
+```bash
+python train.py --path  <environment path>
+```
 
-### (Optional) Challenge: Learning from Pixels
 
-After you have successfully completed the project, if you're looking for an additional challenge, you have come to the right place!  In the project, your agent learned from information such as its velocity, along with ray-based perception of objects around its forward direction.  A more challenging task would be to learn directly from pixels!
+You should see a result similar to one of the following.
+Notice that, you will be notified when the enviornment is solved. The best model is saved according to the mean score over 100 consecutive episodes in the file "checkpoint.pt". The train.py file has many other additional parameters, to display all of them, type in the terminal ```python train.py -h```.
 
-To solve this harder task, you'll need to download a new Unity environment.  This environment is almost identical to the project environment, where the only difference is that the state is an 84 x 84 RGB image, corresponding to the agent's first-person view.  (**Note**: Udacity students should not submit a project with this new environment.)
+```Terminal output```
 
-You need only select the environment that matches your operating system:
-- Linux: [click here](https://s3-us-west-1.amazonaws.com/udacity-drlnd/P1/Banana/VisualBanana_Linux.zip)
-- Mac OSX: [click here](https://s3-us-west-1.amazonaws.com/udacity-drlnd/P1/Banana/VisualBanana.app.zip)
-- Windows (32-bit): [click here](https://s3-us-west-1.amazonaws.com/udacity-drlnd/P1/Banana/VisualBanana_Windows_x86.zip)
-- Windows (64-bit): [click here](https://s3-us-west-1.amazonaws.com/udacity-drlnd/P1/Banana/VisualBanana_Windows_x86_64.zip)
+```terminal
+Unity Academy name: Academy
+        Number of Brains: 1
+        Number of External Brains : 1
+        Lesson number : 0
+        Reset Parameters :
 
-Then, place the file in the `p1_navigation/` folder in the DRLND GitHub repository, and unzip (or decompress) the file.  Next, open `Navigation_Pixels.ipynb` and follow the instructions to learn how to use the Python API to control the agent.
+Unity brain name: BananaBrain
+        Number of Visual Observations (per agent): 0
+        Vector Observation space type: continuous
+        Vector Observation space size (per agent): 37
+        Number of stacked Vector Observation: 1
+        Vector Action space type: discrete
+        Vector Action space size (per agent): 4
+        Vector Action descriptions: , , , 
+Episode 100     Average Score: 0.735
+..
+Episode 487     Average Score: 13.01
+Environment solved in 487 episodes!     Average Score: 13.01
+Episode 500     Average Score: 13.26
+...
+Episode 1900    Average Score: 16.47
+Episode 2000    Average Score: 15.73
+Best average score: 17.06 
+```
 
-(_For AWS_) If you'd like to train the agent on AWS, you must follow the instructions to [set up X Server](https://github.com/Unity-Technologies/ml-agents/blob/master/docs/Training-on-Amazon-Web-Service.md), and then download the environment for the **Linux** operating system above.
+
+### Inference
+
+To inference the trained model, run in the terminal:
+
+```bash
+python inference.py -m <checkpoint path> -e <environment path> 
+```
+
+The command will return an average score during the episode. For the saved checkpoint (checkpoint.pt file) it is equal to ```14```.
+

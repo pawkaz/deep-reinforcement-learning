@@ -23,7 +23,7 @@ def main(args):
 
     agent = Agent(state_size=37, action_size=4, lr=args.lr,
                   batch_size=args.batch_size,
-                  update_every=args.update_target,
+                  update_every=args.update_qnetwork,
                   gamma=args.gamma,
                   tau=args.tau,
                   buffer_size=args.buffer_size,
@@ -39,7 +39,7 @@ def main(args):
     fig, ax = plt.subplots(1, 1, figsize=(8, 8))
     ax.plot(scores)
     ax.set_xlabel("Episodes")
-    ax.set_ylabel("Mean Score")
+    ax.set_ylabel("Score")
     fig.savefig("scores.png")
     env_wr.close()
 
@@ -91,6 +91,12 @@ def train(env, agent, n_episodes:int=1000, max_t:int=1000, eps_start:float=1.0, 
 
 
 class EnvWrapper():
+    """Wrapper for the unity environment.
+
+    Params
+    ======
+        env (UnityEnvironment): unity environment
+    """
     def __init__(self, env:UnityEnvironment):
         self.env = env
         self.brain_name = env.brain_names[0]
@@ -125,6 +131,6 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', "-bs", dest='batch_size', help='Batch size for the learn step', default=64, type=int)
     parser.add_argument('--buffer_size', dest='buffer_size', help='Replay buffer size', default=int(1e5), type=int)
     parser.add_argument('--learning_rate', "-lr", dest='lr', help='Learning rate', default=5e-4, type=float)
-    parser.add_argument('--update_every', dest='update_target', help='How often update target qnetwork', default=4, type=int)
+    parser.add_argument('--update_every', dest='update_qnetwork', help='How often update qnetwork', default=4, type=int)
     args = parser.parse_args()
     main(args)
