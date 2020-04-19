@@ -119,7 +119,7 @@ class EnvWrapper():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train DQN Network')
-    parser.add_argument('--path', dest='path', help='path to environment', default="Banana_Linux/Banana.x86_64", type=str)
+    parser.add_argument('--path', dest='path', help='path to environment', default="/home/paka/repos/deep-reinforcement-learning/p1_navigation/Banana_Linux/Banana.x86_64", type=str)
     parser.add_argument('--episodes', dest='episodes', help='number of episodes', default=1000, type=int)
     parser.add_argument('--no_deuling', dest='dueling', action="store_false", help='Use dueling network', default=True)
     parser.add_argument('--no_decoupled', dest='decoupled', action="store_false", help='Do not use decoupled target', default=True)
