@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from typing import Tuple, Deque
-from multinomial import Multinomial
+from PrioritizedSampler import PrioritizedSampler
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -51,7 +51,9 @@ class QNetworkD(nn.Module):
         self.l = nn.Sequential(
             nn.Linear(state_size, 64),
             nn.ReLU(True),
-            nn.Linear(64, 64),
+            nn.Linear(64, 128),
+            nn.ReLU(True),
+            nn.Linear(128, 64),
             nn.ReLU(True)
         )
         self.stream_state = nn.Linear(32, 1)
@@ -104,7 +106,7 @@ class Agent():
             self.qnetwork_local = QNetwork(state_size, action_size).to(device)
             self.qnetwork_target = QNetwork(state_size, action_size).to(device)
 
-        self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=lr)
+        self.optimizer = optim.RMSprop(self.qnetwork_local.parameters(), lr=lr)
 
         # Replay memory
         # self.memory = ReplayBuffer(action_size, self.buffer_size, batch_size)
@@ -113,6 +115,7 @@ class Agent():
         # Initialize time step (for updating every UPDATE_EVERY steps)
         self.t_step = 0
 
+        
     def step(self, state:np.ndarray, action:int, reward:float, next_state:np.ndarray, done:float):
         # Save experience in replay memory
         self.memory.add(state, action, reward, next_state, done)
@@ -125,7 +128,7 @@ class Agent():
                 experiences, indicies, weigths = self.memory.sample()
                 errors = self.learn(experiences, self.gamma, self.decoupled, weigths)
                 if indicies is not None:
-                    self.memory.update_probabilities(indicies, errors.cpu())
+                    self.memory.update_probabilities(indicies, errors)
 
     def act(self, state:np.ndarray, eps=0.)->int:
         """Returns actions for given state as per current policy.
@@ -135,14 +138,13 @@ class Agent():
             state (array_like): current state
             eps (float): epsilon, for epsilon-greedy action selection
         """
-        state = torch.from_numpy(state).float().unsqueeze(0).to(device)
-        self.qnetwork_local.eval()
-        with torch.no_grad():
-            action_values = self.qnetwork_local(state)
-        self.qnetwork_local.train()
-
-        # Epsilon-greedy action selection
         if random.random() > eps:
+            state = torch.from_numpy(state).float().unsqueeze(0).to(device)
+            self.qnetwork_local.eval()
+            with torch.no_grad():
+                action_values = self.qnetwork_local(state)
+            self.qnetwork_local.train()
+
             return action_values.argmax(-1).item()
         else:
             return random.randint(0, self.action_size - 1)
@@ -171,7 +173,7 @@ class Agent():
         q_values = self.qnetwork_local(states).gather(1, actions)
 
         loss = F.mse_loss(q_values, q_targets)
-        errors = loss.detach().abs()
+        errors = loss.detach()
 
         if weights is not None:
             loss = loss * weights.view(-1, 1)
@@ -201,9 +203,9 @@ Experience = namedtuple("Experience", ["state", "action", "reward", "next_state"
 
 class PriorReplayBuffer:
     """Prioritized Fixed-size buffer to store experience tuples."""
-    counter = 0
-    non_emty = 0
-    def __init__(self, action_size:int, state_size:int, buffer_size:int, batch_size:int, alpha:float=0.6, beta:float=0.4, beta_incremental:float=1e-3, epsilon:float=1e-2):
+    pointer = 0
+    memory_occupied = 0
+    def __init__(self, action_size:int, state_size:int, buffer_size:int, batch_size:int, alpha:float=0.7, beta:float=0.5, beta_incremental:float=1e-3, epsilon:float=1e-2):
         """Initialize a ReplayBuffer object.
 
         Params
@@ -214,66 +216,58 @@ class PriorReplayBuffer:
             seed (int): random seed
         """
         self.action_size = action_size
-        self.memory = np.zeros(buffer_size, dtype=np.object)
-        self.probs = torch.zeros(buffer_size, dtype=torch.float64) + epsilon
+        self.state_size = state_size
+        self.memory = torch.zeros(buffer_size, state_size + state_size + 1 + 1 + 1, dtype=torch.float32)
+        self.probs = torch.zeros(buffer_size, dtype=torch.float32, device=device) + epsilon
         self.batch_size = batch_size
         self.capacity = buffer_size
-        self.dist = Multinomial.create(self.probs)
+        self.dist = PrioritizedSampler.create(self.probs, device=device)
         self.alpha = alpha
         self.beta = beta
         self.beta_incremental = beta_incremental
         self.epsilon = epsilon
         self.max_p = epsilon
+        self.min_p = epsilon
+        
 
     def add(self, state, action, reward, next_state, done):
         """Add a new experience to memory."""
-        self.counter %= self.capacity
-        e = Experience(state, action, reward, next_state, done)
-        self.memory[self.counter] = e
-        self.probs[self.counter] = self.max_p
-        self.counter += 1
-        self.non_emty = max(self.counter, self.non_emty)
+        self.pointer %= self.capacity
+        exp = np.concatenate([state.flatten(), [action, reward], next_state.flatten(), [done]])
+        self.memory[self.pointer] = torch.from_numpy(exp)
+        self.probs[self.pointer] = self.max_p
+        self.pointer += 1
+        self.memory_occupied = max(self.memory_occupied, self.pointer)
 
     def __len__(self):
         """Return the current size of internal memory."""
-        return self.non_emty
+        return self.memory_occupied
 
     def update_probabilities(self, idxs, errors, clip=1.0):
         probs = errors.abs().add_(self.epsilon).clamp_(max=clip).pow_(self.alpha)
-        self.probs[idxs] = probs.double().view(-1)
+        self.probs[idxs] = probs.view(-1)
         self.max_p = self.probs.max()
-        self.update_dist()
-    
-    def update_dist(self):
-        self.dist.cuda()
-        self.dist.update(self.probs)
-        self.dist.cpu()
+        self.min_p = self.probs.min()
+        self.dist.update(self.probs)        
 
     def sample(self):
         """Randomly sample a batch of experiences from memory."""
        
         indicies = self.dist.sample(self.batch_size) % self.__len__()
+        # indicies = torch.zeros(self.batch_size, dtype=torch.long)
+        # weights = torch.ones(self.batch_size, device=device).div_(self.batch_size)
         experiences = self.memory[indicies]
 
-        min_weigth = (self.probs.min() * self.batch_size / self.probs.sum()) ** (-self.beta)
+        max_weight = (self.min_p * self.__len__() / self.dist.tree[0]) ** (-self.beta)        
+        weights = (self.__len__()  / self.dist.tree[0]) * self.probs[indicies].to(device, non_blocking=True)
+        weights.pow_(-self.beta).div_(max_weight)
         
-        weigths = (self.batch_size  / self.probs.sum()) * self.probs[indicies]
-        weigths.pow_(-self.beta).div_(min_weigth)
-
-        self.beta = min(1., self.beta + self.beta_incremental)
         
-        weights = weigths.to(device)
-
-        states = torch.from_numpy(
-            np.vstack([e.state for e in experiences if e is not None])).float().to(device)
-        actions = torch.from_numpy(
-            np.vstack([e.action for e in experiences if e is not None])).long().to(device)
-        rewards = torch.from_numpy(
-            np.vstack([e.reward for e in experiences if e is not None])).float().to(device)
-        next_states = torch.from_numpy(np.vstack(
-            [e.next_state for e in experiences if e is not None])).float().to(device)
-        dones = torch.from_numpy(np.vstack(
-            [e.done for e in experiences if e is not None]).astype(np.uint8)).float().to(device)
+        states = experiences[:, :self.state_size].to(device, non_blocking=True)
+        actions = experiences[:, self.state_size].view(-1, 1).to(device, non_blocking=True, dtype=torch.long)
+        rewards = experiences[:, self.state_size + 1].view(-1, 1).to(device, non_blocking=True)
+        next_states = experiences[:, self.state_size +2 : -1].to(device, non_blocking=True)
+        dones = experiences[:, -1].view(-1, 1).to(device, non_blocking=True)
 
         return (states, actions, rewards, next_states, dones), indicies, weights
 

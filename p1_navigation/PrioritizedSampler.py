@@ -2,7 +2,7 @@ import torch
 import math
 from torch import nn
 
-class Multinomial(nn.Module):
+class PrioritizedSampler(nn.Module):
     """
     Multinomail distribution based on the sum tree data structure.
     Args:
@@ -11,39 +11,59 @@ class Multinomial(nn.Module):
     normalize: Apply normalization to the given probabiblities
     """
     def __init__(self, priorities: torch.Tensor, dtype=torch.float32, normalize: bool = False, device='cpu'):
-        super(Multinomial, self).__init__()
+        super(PrioritizedSampler, self).__init__()
         self.dtype = dtype
         self.normalize = normalize
         self.capacity = priorities.shape[0]
-        self.test = torch.ones(5)
-        self.device = device        
-        self.tree = nn.Parameter(self._create_tree(priorities, None), requires_grad=False)
+        self.device = device
+        tree, self.capacity = self._create_tree(priorities, None)
+        self.tree = nn.Parameter(tree, requires_grad=False)
         
     @classmethod
     def create(cls, priorities: torch.Tensor, dtype=torch.float32, normalize: bool = False, device='cpu'):
         dist = cls(priorities, dtype, normalize, device)
         return torch.jit.script(dist)
-        
+
     @torch.jit.export
-    def _find(self, idx: torch.Tensor, sums: torch.Tensor) -> torch.Tensor:
-        left = 2 * idx + 1
-        right = left + 1
-        not_done = left.lt(self.tree.size(0))
-        left_value = self.tree[left]
+    def _find(self, idx: torch.Tensor, sums: torch.Tensor) -> torch.Tensor:        
+        full_levels = int(torch.log2(torch.tensor(self.capacity, dtype=torch.float)))
 
-        while not_done.sum() > 0:
-            go_left = sums.le(left_value)
-            idx_new = torch.where(go_left, left, right)
-            sums_new = torch.where(go_left, sums, sums - left_value)
-            idx = torch.where(not_done, idx_new, idx)
-            sums = torch.where(not_done, sums_new, sums)
+        for _ in range(full_levels):
+            idx.mul_(2).add_(1)
+            left_value = self.tree[idx]
+            go_right = sums.gt(left_value)
+            idx.add_(go_right)
+            sums.sub_(left_value * go_right)
+            
+        left_idx = idx.mul(2).add_(1)
+        not_done = left_idx.lt(self.tree.size(0))
+        not_done_idxs = left_idx[not_done]
+        left_value = self.tree[not_done_idxs]
+        go_right = sums[not_done].gt(left_value)
+        idx[not_done] = go_right + not_done_idxs
+        
+        return idx    
+        
+    # @torch.jit.export
+    # def _find(self, idx: torch.Tensor, sums: torch.Tensor) -> torch.Tensor:
+    #     left = 2 * idx + 1
+    #     right = left + 1
+    #     not_done = left.lt(self.tree.size(0))
+    #     left_value = self.tree[left]
 
-            left = 2 * idx + 1
-            right = left + 1
-            not_done = left.lt(self.tree.size(0))
-            left_value[not_done] = self.tree[left[not_done]]
+    #     while not_done.sum() > 0:
+    #         go_left = sums.le(left_value)
+    #         idx_new = torch.where(go_left, left, right)
+    #         sums_new = torch.where(go_left, sums, sums - left_value)
+    #         idx = torch.where(not_done, idx_new, idx)
+    #         sums = torch.where(not_done, sums_new, sums)
 
-        return idx
+    #         left = 2 * idx + 1
+    #         right = left + 1
+    #         not_done = left.lt(self.tree.size(0))
+    #         left_value[not_done] = self.tree[left[not_done]]
+
+    #     return idx
     
     
     @property
@@ -78,14 +98,15 @@ class Multinomial(nn.Module):
         """
         Updates distribution by a given probabilities.
         """
-        self.tree = self._create_tree(probs, self.tree)
+        tree, capacity = self._create_tree(probs, self.tree)
+        self.tree = tree
+        self.capacity = capacity
         
     @torch.jit.export
     def _create_tree(self, probs: torch.Tensor, tree:torch.Tensor):
         
-        capacity = probs.shape[0]    
-        self.capacity = capacity             
-        if tree is None:
+        capacity = probs.shape[0]             
+        if tree is None or capacity != self.capacity:
             tree = torch.zeros(2 * capacity - 1, dtype=self.dtype, device=self.device)
         
         full_levels = int(torch.log2(torch.tensor(capacity).float()))
@@ -111,4 +132,4 @@ class Multinomial(nn.Module):
             upper_row = upper_row.view(-1, 2).sum(1)
             tree[start_row_idx:start_row_idx+row_size].copy_(upper_row)
         
-        return tree
+        return tree, capacity

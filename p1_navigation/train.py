@@ -8,7 +8,8 @@ import numpy as np
 import torch
 from matplotlib import pyplot as plt
 from unityagents import UnityEnvironment
-
+from torch.utils import tensorboard
+from time import time
 from Agent import Agent
 
 matplotlib.use('Agg')
@@ -59,23 +60,46 @@ def train(env, agent, n_episodes:int=1000, max_t:int=1000, eps_start:float=1.0, 
     scores_window:Deque[float] = deque(maxlen=100)
     eps = eps_start
     best_score = float("-inf")
+    writer = tensorboard.SummaryWriter(f"runs/{int(time())}")
     for i_episode in range(1, n_episodes+1):
         state = env.reset()
         score = 0
+        writer.add_scalar("train/epsilon", eps, i_episode)
+        
+        start = time()
         for t in range(max_t):
             action = agent.act(state, eps)
             next_state, reward, done, _ = env.step(action)
+            # writer.add_scalar("reward", reward, (i_episode - 1) * max_t + t)
             agent.step(state, action, reward, next_state, done)
             state = next_state
             score += reward
             if done:
                 break
+
+        time_for_episode = time() - start
+        writer.add_scalar("train/time", time_for_episode, i_episode)
         scores_window.append(score)
         scores.append(score)
+
         eps = max(eps_end, eps_decay*eps)
         window_score = np.mean(scores_window)
-        print(f'\rEpisode {i_episode}\tAverage Score: {window_score:.2f}', end="")
 
+        writer.add_scalar("train/reward", score, i_episode)        
+        writer.add_scalar("train/window", window_score, i_episode)
+        writer.add_scalar("train/memory_size", len(agent.memory), i_episode)
+
+        probs = getattr(agent.memory, 'probs', None)
+        if probs is not None:
+             writer.add_histogram("train/memory_probs", probs, i_episode)
+
+        beta = getattr(agent.memory, 'beta', None)
+        if beta is not None:
+            writer.add_scalar("train/memory_beta", beta, i_episode)
+            agent.memory.beta = min(1., agent.memory.beta + agent.memory.beta_incremental)
+        
+        print(f'\rEpisode {i_episode}\tAverage Score: {window_score:.2f}\tTime: {time_for_episode:.2f}', end="")
+        
         if i_episode % 100 == 0:
             print(f'\rEpisode {i_episode}\tAverage Score: {window_score:.2f}')
 
@@ -86,7 +110,12 @@ def train(env, agent, n_episodes:int=1000, max_t:int=1000, eps_start:float=1.0, 
             best_score = window_score
             torch.save(agent.qnetwork_local.state_dict(), 'checkpoint.pt')
 
+    memory_dump = getattr(agent.memory, 'memory', None)   
+    if memory_dump is not None:     
+        torch.save(memory_dump, "memory.pt")
+
     print(f"Best average score: {best_score}")
+    writer.close()
     return scores
 
 
@@ -131,6 +160,6 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', "-bs", dest='batch_size', help='Batch size for the learn step', default=64, type=int)
     parser.add_argument('--buffer_size', dest='buffer_size', help='Replay buffer size', default=int(1e5), type=int)
     parser.add_argument('--learning_rate', "-lr", dest='lr', help='Learning rate', default=5e-4, type=float)
-    parser.add_argument('--update_every', dest='update_qnetwork', help='How often update qnetwork', default=4, type=int)
+    parser.add_argument('--update_every', dest='update_qnetwork', help='How often update qnetwork', default=8, type=int)
     args = parser.parse_args()
     main(args)
