@@ -1,13 +1,13 @@
 # Report
 
-The agent is able to solve the environment in 150 episodes on average. The code is adapted from the ddpg repository. It is compatible with both versions of the environment, but the provided results are for the second version with 20 agents.
+The agent is able to solve the environment in 150 episodes on average. The code is adapted from the ddpg repository. It is compatible with both versions of the environment, but results are provided for the second version with 20 agents.
 
 ## Learning Algorithm 
 The [DDPG algorithm](https://arxiv.org/abs/1509.02971) was used. The basic model is not able to solve the environment. The baseline implementation consists of training loop, agent and replay buffer. The implementation was amended by adding compatibility with second version of the environment. 
 
 ### Model
 
-Two types of the deep neural network were used, actor and critic models.
+Two types of the deep neural network were used: actor and critic models.
 
 The actor architecture is based on 4 fully connected layers.
 
@@ -44,7 +44,7 @@ UPDATES   | How many updates during learning | 10
 AGENTS   | The number of agents | 20
 
 ## Results
-The saved weights are in the files ```checkpoint_actor.pt``` and ```checkpoint_critic.pt``` for actor and critic respectively. The task was solved in ```147``` episodes. Best average score over 100 consecutive episodes is ```35.56```. The scores are plotted below.
+The weights are saved in files ```checkpoint_actor.pt``` and ```checkpoint_critic.pt``` for actor and critic respectively. The task was solved in ```147``` episodes. Best average score over 100 consecutive episodes is ```35.56```. The scores are plotted below.
 
 ![Trained Agent](scores.png)
 
