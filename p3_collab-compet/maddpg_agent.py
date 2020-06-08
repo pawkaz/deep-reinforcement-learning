@@ -22,36 +22,34 @@ UPDATE_EVERY = 1
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Agent():
-    """Interacts with and learns from the environment."""
+    """Interacts and learns from the environment."""
     
-    def __init__(self, state_size, action_size, random_seed, order=0):
+    def __init__(self, state_size, action_size, order=0):
         """Initialize an Agent object.
         
         Params
         ======
             state_size (int): dimension of each state
             action_size (int): dimension of each action
-            random_seed (int): random seed
         """
         self.state_size = state_size
         self.action_size = action_size
-        self.seed = random.seed(random_seed)
 
         # Actor Network (w/ Target Network)
-        self.actor_local = Actor(state_size, action_size, random_seed).to(device)
-        self.actor_target = Actor(state_size, action_size, random_seed).to(device)
+        self.actor_local = Actor(state_size, action_size).to(device)
+        self.actor_target = Actor(state_size, action_size).to(device)
         self.actor_optimizer = optim.Adam(self.actor_local.parameters(), lr=LR_ACTOR)
 
         # Critic Network (w/ Target Network)
-        self.critic_local = Critic(state_size * 2, action_size * 2, random_seed).to(device)
-        self.critic_target = Critic(state_size * 2, action_size * 2, random_seed).to(device)
+        self.critic_local = Critic(state_size * 2, action_size * 2).to(device)
+        self.critic_target = Critic(state_size * 2, action_size * 2).to(device)
         self.critic_optimizer = optim.Adam(self.critic_local.parameters(), lr=LR_CRITIC, weight_decay=WEIGHT_DECAY)
 
         # Noise process
-        self.noise = OUNoise(action_size, random_seed)
+        self.noise = OUNoise(action_size)
 
         # Replay memory
-        self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, random_seed)
+        self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE)
 
         self.order = order
 
@@ -78,11 +76,8 @@ class Agent():
             action = self.actor_local(state).cpu().data.numpy()
         self.actor_local.train()
         if add_noise:
-            action += self.noise.sample() * 0.1
+            action += self.noise.sample() * .5
         return np.clip(action, -1, 1)
-
-    def reset(self):
-        self.noise.reset()
 
     def learn(self, experiences, gamma):
         """Update policy and value parameters using given batch of experience tuples.
@@ -149,12 +144,11 @@ class Agent():
 class OUNoise:
     """Ornstein-Uhlenbeck process."""
 
-    def __init__(self, size, seed, mu=0., theta=0.15, sigma=0.2):
+    def __init__(self, size, mu=0., theta=0.15, sigma=0.2):
         """Initialize parameters and noise process."""
         self.mu = mu * np.ones(size)
         self.theta = theta
         self.sigma = sigma
-        self.seed = random.seed(seed)
         self.reset()
 
     def reset(self):
@@ -164,14 +158,14 @@ class OUNoise:
     def sample(self):
         """Update internal state and return it as a noise sample."""
         x = self.state
-        dx = self.theta * (self.mu - x) + self.sigma * np.array([random.random() for i in range(len(x))])
+        dx = self.theta * (self.mu - x) + self.sigma * np.random.randn(len(x))
         self.state = x + dx
         return self.state
 
 class ReplayBuffer:
     """Fixed-size buffer to store experience tuples."""
 
-    def __init__(self, action_size, buffer_size, batch_size, seed):
+    def __init__(self, action_size, buffer_size, batch_size):
         """Initialize a ReplayBuffer object.
         Params
         ======
@@ -182,7 +176,6 @@ class ReplayBuffer:
         self.memory = deque(maxlen=buffer_size)  # internal memory (deque)
         self.batch_size = batch_size
         self.experience = namedtuple("Experience", field_names=["state", "action", "reward", "next_state", "done", "next_action"])
-        self.seed = random.seed(seed)
     
     def add(self, state, action, reward, next_state, done, next_action):
         """Add a new experience to memory."""

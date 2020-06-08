@@ -16,14 +16,20 @@ matplotlib.use('Agg')
 
 
 def main(args):
+    """
+    Setup agents and run training.
+    Params
+    ======
+        args (dict): maximum number of training episodes
+    """
     print(args)
     
     env = UnityEnvironment(file_name=args.path)
 
     env_wr = EnvWrapper(env)
 
-    agentA = Agent(state_size=24, action_size=2, random_seed=10, order=0)
-    agentB = Agent(state_size=24, action_size=2, random_seed=11, order=1)
+    agentA = Agent(state_size=24, action_size=2, order=0)
+    agentB = Agent(state_size=24, action_size=2, order=1)
 
     scores = train(env_wr, (agentA, agentB), n_episodes=args.episodes)
 
@@ -38,10 +44,13 @@ def main(args):
 
 def train(env, agents, n_episodes:int=1000, score_threshold:float=.5)->list:
     """
+    Train agents.
     Params
     ======
         n_episodes (int): maximum number of training episodes
+        score_threshold (float): score threshold 
     """
+
     scores = []
     scores_window:Deque[float] = deque(maxlen=100)
     best_score = float("-inf")
@@ -97,17 +106,24 @@ def train(env, agents, n_episodes:int=1000, score_threshold:float=.5)->list:
 
 
 class EnvWrapper():
-    """Wrapper for the unity environment.
-
-    Params
-    ======
-        env (UnityEnvironment): unity environment
+    """
+    Wrapper for the unity environment.
     """
     def __init__(self, env:UnityEnvironment):
+        """
+        Params
+        ======
+        env (UnityEnvironment): unity environment
+        """
         self.env = env
         self.brain_name = self.env.brain_names[0]
 
     def step(self, action:np.ndarray)->Tuple[np.ndarray, float, float, None]:
+        """
+        Params
+        ======
+            action (np.ndarray): Agent action
+        """
         env_info = self.env.step(action.reshape(-1))[self.brain_name]
         next_state = env_info.vector_observations
         reward = env_info.rewards
@@ -115,17 +131,26 @@ class EnvWrapper():
         return next_state, reward, done, None
 
     def reset(self, train_mode:bool=True)->np.ndarray:
+        """
+        Reset the environment.
+        Params
+        ======
+            train_mode (bool): maximum number of training episodes
+        """
         env_info = self.env.reset(train_mode=train_mode)[self.brain_name]
         state = env_info.vector_observations
         return state
 
     def close(self):
+        """
+        Close the environment.
+        """
         self.env.close()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train MADDPG Network')
     parser.add_argument('--path', dest='path', help='path to environment', default="Tennis_Linux/Tennis.x86_64", type=str)
-    parser.add_argument('--episodes', dest='episodes', help='number of episodes', default=2100, type=int)
+    parser.add_argument('--episodes', dest='episodes', help='number of episodes', default=2000, type=int)
     args = parser.parse_args()
     main(args)

@@ -8,7 +8,7 @@
 
 ### Introduction
 
-This repository contains a solution for the third project from the Udacity Deep Reinforcement Learning Program. The agents have solved the task in ```2004 episodes```. The best achieved score is equal to ```3.14```.
+This repository contains a solution for the third project from the Udacity Deep Reinforcement Learning Program. The agents have solved the task in ```1649 episodes```. The best achieved score is equal to ```2.71```.
 
 ### Environment
 
